@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ihrm
+          POSTGRES_PASSWORD: ihrm
+          POSTGRES_DB: ihrm
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U ihrm" --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://ihrm:ihrm@localhost:5432/ihrm
+      REDIS_URL: redis://localhost:6379
+      JWT_ACCESS_SECRET: ci-only-secret-ci-only-secret-ci-only-secret
+      DATA_ENCRYPTION_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      BLIND_INDEX_KEY: ci-only-blind-index-key-0123456789abcdef
+      STORAGE_DIR: /tmp/ihrm-storage
+      MAIL_PROVIDER: log
+      API_PUBLIC_URL: http://localhost:3000
+      SEED_ADMIN_EMAIL: admin@example.com
+      SEED_ADMIN_PASSWORD: CiAdminPassword123
+      SEED_DEMO: 'true'
+      SEED_DEMO_PASSWORD: CiDemoPassword123
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install
+        run: pnpm install --no-frozen-lockfile
+      - name: Shared — build & unit tests (payroll engine, contract tax, attendance, leave)
+        run: |
+          pnpm --filter @ihrm/shared build
+          pnpm --filter @ihrm/shared test
+      - name: API — prisma generate & typecheck
+        working-directory: apps/api
+        run: |
+          pnpm exec prisma validate
+          pnpm exec prisma generate
+          pnpm exec tsc -p tsconfig.json --noEmit
+      - name: API — migration SQL from schema (printed for review)
+        working-directory: apps/api
+        run: pnpm exec prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > /tmp/schema.sql && wc -l /tmp/schema.sql
+      - name: API — migrate (committed migrations if present, otherwise schema push)
+        working-directory: apps/api
+        run: |
+          if [ -d prisma/migrations ]; then pnpm exec prisma migrate deploy; else pnpm exec prisma db push --skip-generate; fi
+      - name: API — build & seed (with demo data)
+        working-directory: apps/api
+        run: |
+          pnpm build
+          node dist/prisma/seed.js
+          node dist/prisma/seed.js   # idempotent
+      - name: API — start and run end-to-end tests
+        env:
+          CHROMIUM_PATH: /usr/bin/google-chrome
+        run: |
+          (cd apps/api && node dist/src/main.js > /tmp/api.log 2>&1 &)
+          for i in $(seq 1 60); do curl -sf http://localhost:3000/api/health && break; sleep 1; done
+          API_URL=http://localhost:3000 ADMIN_EMAIL=$SEED_ADMIN_EMAIL ADMIN_PASSWORD=$SEED_ADMIN_PASSWORD EXPECT_PDF=true node tests/e2e/api.e2e.mjs
+      - name: API — run e2e again without PDF engine (HTML fallback) 
+        run: |
+          pkill -f "dist/src/main.js" || true
+          sleep 1
+          (cd apps/api && node dist/src/main.js > /tmp/api2.log 2>&1 &)
+          for i in $(seq 1 60); do curl -sf http://localhost:3000/api/health && break; sleep 1; done
+          API_URL=http://localhost:3000 ADMIN_EMAIL=$SEED_ADMIN_EMAIL ADMIN_PASSWORD=$SEED_ADMIN_PASSWORD node tests/e2e/api.e2e.mjs
+      - name: API log
+        if: always()
+        run: tail -n 200 /tmp/api.log /tmp/api2.log 2>/dev/null || true
+      - name: Web — typecheck & build
+        if: hashFiles('apps/web/package.json') != ''
+        run: pnpm --filter @ihrm/web build
+      - name: Upload generated schema SQL
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: schema-sql
+          path: /tmp/schema.sql
+          if-no-files-found: ignore
