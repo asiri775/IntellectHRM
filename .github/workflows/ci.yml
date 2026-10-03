@@ -48,50 +48,50 @@ jobs:
         with:
           node-version: 22
       - name: Install
-        run: pnpm install --no-frozen-lockfile
+        run: .github/scripts/run.sh install pnpm install --no-frozen-lockfile
       - name: Shared — build & unit tests (payroll engine, contract tax, attendance, leave)
         run: |
-          pnpm --filter @ihrm/shared build
-          pnpm --filter @ihrm/shared test
+          .github/scripts/run.sh shared-build pnpm --filter @ihrm/shared build
+          .github/scripts/run.sh shared-test pnpm --filter @ihrm/shared test
       - name: API — prisma generate & typecheck
         working-directory: apps/api
         run: |
-          pnpm exec prisma validate
-          pnpm exec prisma generate
-          pnpm exec tsc -p tsconfig.json --noEmit
+          ../../.github/scripts/run.sh prisma-validate pnpm exec prisma validate
+          ../../.github/scripts/run.sh prisma-generate pnpm exec prisma generate
+          ../../.github/scripts/run.sh api-typecheck pnpm exec tsc -p tsconfig.json --noEmit
       - name: API — migration SQL from schema (printed for review)
         working-directory: apps/api
         run: pnpm exec prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > /tmp/schema.sql && wc -l /tmp/schema.sql
       - name: API — migrate (committed migrations if present, otherwise schema push)
         working-directory: apps/api
         run: |
-          if [ -d prisma/migrations ]; then pnpm exec prisma migrate deploy; else pnpm exec prisma db push --skip-generate; fi
+          if [ -d prisma/migrations ]; then ../../.github/scripts/run.sh migrate pnpm exec prisma migrate deploy; else ../../.github/scripts/run.sh db-push pnpm exec prisma db push --skip-generate; fi
       - name: API — build & seed (with demo data)
         working-directory: apps/api
         run: |
-          pnpm build
-          node dist/prisma/seed.js
-          node dist/prisma/seed.js   # idempotent
+          ../../.github/scripts/run.sh api-build pnpm build
+          ../../.github/scripts/run.sh seed node dist/prisma/seed.js
+          ../../.github/scripts/run.sh seed-again node dist/prisma/seed.js   # idempotent
       - name: API — start and run end-to-end tests
         env:
           CHROMIUM_PATH: /usr/bin/google-chrome
         run: |
           (cd apps/api && node dist/src/main.js > /tmp/api.log 2>&1 &)
           for i in $(seq 1 60); do curl -sf http://localhost:3000/api/health && break; sleep 1; done
-          API_URL=http://localhost:3000 ADMIN_EMAIL=$SEED_ADMIN_EMAIL ADMIN_PASSWORD=$SEED_ADMIN_PASSWORD EXPECT_PDF=true node tests/e2e/api.e2e.mjs
+          API_URL=http://localhost:3000 ADMIN_EMAIL=$SEED_ADMIN_EMAIL ADMIN_PASSWORD=$SEED_ADMIN_PASSWORD EXPECT_PDF=true .github/scripts/run.sh e2e-pdf node tests/e2e/api.e2e.mjs || { .github/scripts/run.sh api-log bash -c "tail -n 80 /tmp/api.log; false"; false; }
       - name: API — run e2e again without PDF engine (HTML fallback) 
         run: |
           pkill -f "dist/src/main.js" || true
           sleep 1
           (cd apps/api && node dist/src/main.js > /tmp/api2.log 2>&1 &)
           for i in $(seq 1 60); do curl -sf http://localhost:3000/api/health && break; sleep 1; done
-          API_URL=http://localhost:3000 ADMIN_EMAIL=$SEED_ADMIN_EMAIL ADMIN_PASSWORD=$SEED_ADMIN_PASSWORD node tests/e2e/api.e2e.mjs
+          API_URL=http://localhost:3000 ADMIN_EMAIL=$SEED_ADMIN_EMAIL ADMIN_PASSWORD=$SEED_ADMIN_PASSWORD .github/scripts/run.sh e2e-html node tests/e2e/api.e2e.mjs || { .github/scripts/run.sh api-log bash -c "tail -n 80 /tmp/api2.log; false"; false; }
       - name: API log
         if: always()
         run: tail -n 200 /tmp/api.log /tmp/api2.log 2>/dev/null || true
       - name: Web — typecheck & build
         if: hashFiles('apps/web/package.json') != ''
-        run: pnpm --filter @ihrm/web build
+        run: .github/scripts/run.sh web-build pnpm --filter @ihrm/web build
       - name: Upload generated schema SQL
         if: always()
         uses: actions/upload-artifact@v4
