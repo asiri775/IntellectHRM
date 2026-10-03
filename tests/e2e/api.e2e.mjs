@@ -52,7 +52,7 @@ const month = now.getUTCMonth() + 1;
 const uniq = Date.now().toString(36);
 const NIC_NEW = String(Date.now()).slice(-12).padStart(12, '2'); // 12-digit format
 const NIC_OLD = `${String(Date.now()).slice(-9)}V`; // 9 digits + V
-let admin, empToken, hrToken, employee, hrEmployee, run, contractLine;
+let admin, empToken, hrToken, employee, hrEmployee, run, contractLine, workDate;
 
 console.log(`E2E against ${API}`);
 
@@ -190,10 +190,11 @@ await step('attendance: sign in, break, sign out; double sign-in rejected', asyn
   assert.ok(out.signOutAt);
   t = await call('GET', '/attendance/today', { token: empToken });
   assert.equal(t.state, 'SIGNED_OUT');
+  workDate = t.workDate; // employee's local (Asia/Colombo) date, which can differ from UTC
 });
 
 await step('attendance: HR daily board and manual correction with reason', async () => {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = workDate;
   const board = await call('GET', `/attendance/daily?date=${today}`, { token: hrToken });
   assert.ok(board.rows.some((r) => r.employee.id === employee.id));
   const rec = (await call('GET', `/attendance/records?from=${today}&to=${today}&employeeId=${employee.id}`, { token: hrToken }))[0];
