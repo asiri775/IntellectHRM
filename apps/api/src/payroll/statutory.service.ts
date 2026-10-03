@@ -56,7 +56,7 @@ export class StatutoryService {
     });
   }
 
-  async addVersion(user: AuthUser, code: string, body: { effectiveFrom: string; config: unknown; note?: string }, meta: RequestMeta) {
+  async addVersion(user: AuthUser, code: string, body: { effectiveFrom: string; config?: unknown; note?: string }, meta: RequestMeta) {
     if (!RULE_CODES.includes(code as StatutoryRuleCode)) throw new NotFoundException(`Unknown rule ${code}`);
     const parsed = RULE_CONFIG_SCHEMAS[code as StatutoryRuleCode].safeParse(body.config);
     if (!parsed.success) {

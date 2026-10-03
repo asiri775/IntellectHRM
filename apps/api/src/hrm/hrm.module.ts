@@ -222,10 +222,10 @@ export class EmployeeService {
       const defaultSchedule = b.workScheduleId ? null : await tx.workSchedule.findFirst({ where: { companyId: user.companyId, isDefault: true } });
       const e = await tx.employee.create({
         data: {
+          ...this.toData(b),
           companyId: user.companyId,
           employeeNo,
           userId,
-          ...this.toData(b),
           workScheduleId: b.workScheduleId ?? defaultSchedule?.id ?? null,
           joiningDate: dateOnly(b.joiningDate),
           createdBy: user.userId,
