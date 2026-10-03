@@ -197,7 +197,7 @@ export const INVOICE_TEMPLATE_HTML = `<div class="doc">
 
   <div class="meta">
     <div class="box">
-      <h1>{{doc.title}}</h1>
+      <h1>{{#if options.title}}{{options.title}}{{else}}{{doc.title}}{{/if}}</h1>
       <div><strong>No:</strong> {{doc.number}}</div>
       <div><strong>Date:</strong> {{date doc.date}}</div>
       {{#if doc.dueDate}}<div><strong>{{#if (eq doc.type "QUOTATION")}}Valid until{{else}}Due date{{/if}}:</strong> {{date doc.dueDate}}</div>{{/if}}
