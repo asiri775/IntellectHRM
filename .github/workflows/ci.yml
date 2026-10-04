@@ -5,6 +5,9 @@ on:
     branches: ['**']
   pull_request:
 
+permissions:
+  contents: write
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -92,6 +95,23 @@ jobs:
       - name: Web — typecheck & build
         if: hashFiles('apps/web/package.json') != ''
         run: .github/scripts/run.sh web-build pnpm --filter @ihrm/web build
+      - name: UI screenshots (web preview against the running API)
+        if: hashFiles('apps/web/package.json') != ''
+        env:
+          CHROMIUM_PATH: /usr/bin/google-chrome
+        run: |
+          (pnpm --filter @ihrm/web exec vite preview --port 4173 --strictPort > /tmp/web.log 2>&1 &)
+          for i in $(seq 1 30); do curl -sf http://localhost:4173 > /dev/null && break; sleep 1; done
+          WEB_URL=http://localhost:4173 OUT=/tmp/shots ADMIN_EMAIL=$SEED_ADMIN_EMAIL ADMIN_PASSWORD=$SEED_ADMIN_PASSWORD .github/scripts/run.sh screenshots node tests/screenshots/capture.mjs
+      - name: Publish review artifacts to the ci-artifacts branch
+        if: always() && github.event_name == 'push'
+        run: |
+          mkdir -p /tmp/pub
+          cp -r /tmp/shots /tmp/pub/ 2>/dev/null || true
+          cp /tmp/schema.sql /tmp/pub/ 2>/dev/null || true
+          cd /tmp/pub && git init -q && git checkout -q -b ci-artifacts && git add -A
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "CI artifacts for ${GITHUB_SHA}" || exit 0
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" ci-artifacts
       - name: Upload generated schema SQL
         if: always()
         uses: actions/upload-artifact@v4
