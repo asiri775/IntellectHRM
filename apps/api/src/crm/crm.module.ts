@@ -712,9 +712,15 @@ export class CrmController {
 
   // Activities
   @Get('activities')
+  @RequirePermissions('LEAD_VIEW', 'CUSTOMER_VIEW', 'OPPORTUNITY_VIEW')
   async activities(@CurrentUser() u: AuthUser, @Query(new ZodPipe(z.object({ leadId: z.string().uuid().optional(), customerId: z.string().uuid().optional(), opportunityId: z.string().uuid().optional(), mine: z.coerce.boolean().optional(), open: z.coerce.boolean().optional() }))) q: { leadId?: string; customerId?: string; opportunityId?: string; mine?: boolean; open?: boolean }) {
+    // Users who only see their own CRM records only see activity on those records (or activity they logged).
+    const wide = (['LEAD_VIEW', 'CUSTOMER_VIEW', 'OPPORTUNITY_VIEW'] as const).some((c) => ['DEPARTMENT', 'COMPANY', 'ALL'].includes(u.permissions[c] ?? ''));
+    const ownOnly: Prisma.ActivityWhereInput = wide
+      ? {}
+      : { OR: [{ userId: u.userId }, { lead: { ownerUserId: u.userId } }, { customer: { ownerUserId: u.userId } }, { opportunity: { ownerUserId: u.userId } }] };
     return this.prisma.activity.findMany({
-      where: { companyId: u.companyId, leadId: q.leadId, customerId: q.customerId, opportunityId: q.opportunityId, ...(q.mine ? { userId: u.userId } : {}), ...(q.open ? { completedAt: null } : {}) },
+      where: { companyId: u.companyId, leadId: q.leadId, customerId: q.customerId, opportunityId: q.opportunityId, ...(q.mine ? { userId: u.userId } : {}), ...(q.open ? { completedAt: null } : {}), ...ownOnly },
       include: { lead: { select: { id: true, name: true, number: true } }, customer: { select: { id: true, name: true } }, opportunity: { select: { id: true, title: true, number: true } } },
       orderBy: [{ dueAt: 'asc' }, { createdAt: 'desc' }],
       take: 200,
@@ -723,6 +729,12 @@ export class CrmController {
   @Post('activities')
   async addActivity(@CurrentUser() u: AuthUser, @Body(new ZodPipe(activitySchema)) b: z.infer<typeof activitySchema>) {
     if (!('LEAD_MANAGE' in u.permissions || 'CUSTOMER_MANAGE' in u.permissions || 'OPPORTUNITY_MANAGE' in u.permissions)) throw new BadRequestException('Not permitted');
+    const checks = [
+      b.leadId && this.prisma.lead.count({ where: { id: b.leadId, companyId: u.companyId } }),
+      b.customerId && this.prisma.customer.count({ where: { id: b.customerId, companyId: u.companyId } }),
+      b.opportunityId && this.prisma.opportunity.count({ where: { id: b.opportunityId, companyId: u.companyId } }),
+    ].filter(Boolean) as Promise<number>[];
+    if ((await Promise.all(checks)).some((c) => c === 0)) throw new NotFoundException('Linked record not found');
     return this.prisma.activity.create({ data: { ...b, dueAt: b.dueAt ? new Date(b.dueAt) : null, companyId: u.companyId, userId: u.userId, completedAt: b.type === 'NOTE' ? new Date() : null } });
   }
   @Post('activities/:id/complete')

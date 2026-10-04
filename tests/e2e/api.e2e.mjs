@@ -172,6 +172,7 @@ await step('RBAC: employee sees only own record and masked data; no payroll acce
   assert.equal(list.total, 1);
   assert.equal(list.items[0].id, employee.id);
   await call('GET', '/payroll/runs', { token: empToken, expect: 403 });
+  await call('GET', '/crm/activities', { token: empToken, expect: 403 }); // sales notes are not visible to employees
   await call('GET', `/employees/${hrEmployee.id}`, { token: empToken, expect: 404 });
   const hrView = await call('GET', `/employees/${employee.id}`, { token: hrToken });
   assert.equal(hrView.nic, NIC_OLD); // HR has EMPLOYEE_SENSITIVE_VIEW
