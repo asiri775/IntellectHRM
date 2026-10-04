@@ -21,8 +21,8 @@ jobs:
         image: postgres:16
         env:
           POSTGRES_USER: ihrm
-          POSTGRES_PASSWORD: ihrm
           POSTGRES_DB: ihrm
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U ihrm" --health-interval 5s --health-timeout 5s --health-retries 10
@@ -32,20 +32,26 @@ jobs:
         options: >-
           --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
     env:
-      DATABASE_URL: postgresql://ihrm:ihrm@localhost:5432/ihrm
+      # No credentials are stored in the repo: the throwaway database runs with trust auth
+      # and all keys/passwords are generated per run (see the first step).
+      DATABASE_URL: postgresql://ihrm@localhost:5432/ihrm
       REDIS_URL: redis://localhost:6379
-      JWT_ACCESS_SECRET: ci-only-secret-ci-only-secret-ci-only-secret
-      DATA_ENCRYPTION_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
-      BLIND_INDEX_KEY: ci-only-blind-index-key-0123456789abcdef
       STORAGE_DIR: /tmp/ihrm-storage
       MAIL_PROVIDER: log
       REFRESH_REUSE_GRACE_SECONDS: '2'
       API_PUBLIC_URL: http://localhost:3000
       SEED_ADMIN_EMAIL: admin@example.com
-      SEED_ADMIN_PASSWORD: CiAdminPassword123
       SEED_DEMO: 'true'
-      SEED_DEMO_PASSWORD: CiDemoPassword123
     steps:
+      - name: Generate throwaway secrets for this run
+        run: |
+          {
+            echo "JWT_ACCESS_SECRET=$(openssl rand -hex 32)"
+            echo "DATA_ENCRYPTION_KEY=$(openssl rand -base64 32)"
+            echo "BLIND_INDEX_KEY=$(openssl rand -hex 32)"
+            echo "SEED_ADMIN_PASSWORD=Ci$(openssl rand -hex 12)"
+            echo "SEED_DEMO_PASSWORD=Demo$(openssl rand -hex 12)"
+          } >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
@@ -71,8 +77,8 @@ jobs:
       - name: API — committed migrations match schema.prisma (drift check)
         working-directory: apps/api
         run: |
-          PGPASSWORD=ihrm psql -h localhost -U ihrm -d ihrm -qc "CREATE DATABASE ihrm_shadow"
-          ../../.github/scripts/run.sh migration-drift pnpm exec prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url postgresql://ihrm:ihrm@localhost:5432/ihrm_shadow --exit-code
+          psql -h localhost -U ihrm -d ihrm -qc "CREATE DATABASE ihrm_shadow"
+          ../../.github/scripts/run.sh migration-drift pnpm exec prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url postgresql://ihrm@localhost:5432/ihrm_shadow --exit-code
       - name: API — migrate (committed migrations if present, otherwise schema push)
         working-directory: apps/api
         run: |
