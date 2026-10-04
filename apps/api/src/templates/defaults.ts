@@ -386,9 +386,15 @@ export function localiseLine(line: { code: string; name: string }, lang: string)
   return { ...line, name: rate ? `${name} (${rate})` : name };
 }
 
+const MONTH_NAMES: Record<string, string[]> = {
+  en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+  si: ['ජනවාරි', 'පෙබරවාරි', 'මාර්තු', 'අප්‍රේල්', 'මැයි', 'ජූනි', 'ජූලි', 'අගෝස්තු', 'සැප්තැම්බර්', 'ඔක්තෝබර්', 'නොවැම්බර්', 'දෙසැම්බර්'],
+  ta: ['ஜனவரி', 'பிப்ரவரி', 'மார்ச்', 'ஏப்ரல்', 'மே', 'ஜூன்', 'ஜூலை', 'ஆகஸ்ட்', 'செப்டம்பர்', 'அக்டோபர்', 'நவம்பர்', 'டிசம்பர்'],
+};
+
+/** "October 2026" / "ඔක්තෝබර් 2026" / "அக்டோபர் 2026" — fixed names, independent of the server's ICU data. */
 export function periodName(year: number, month: number, lang: string) {
-  const locale = lang === 'si' ? 'si-LK' : lang === 'ta' ? 'ta-LK' : 'en-GB';
-  return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, 1)));
+  return `${(MONTH_NAMES[lang] ?? MONTH_NAMES.en)[month - 1]} ${year}`;
 }
 
 /** Payslip labels per language (used as {{t.*}} in the payslip template). */
