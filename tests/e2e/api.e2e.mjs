@@ -245,7 +245,7 @@ await step('statutory rules: 7 rules seeded; invalid version rejected; new versi
   await call('POST', '/payroll/statutory-rules/CONTRACT_EMPLOYEE_TAX/versions', {
     token: admin,
     expect: 201,
-    body: { effectiveFrom: `${year + 1}-01-01`, config: { ...ct.versions[0].config, basis: 'EXCESS_OVER_THRESHOLD' }, note: 'E2E future version' },
+    body: { effectiveFrom: `${year + 1}-01-${String(ct.versions.length + 1).padStart(2, '0')}`, config: { ...ct.versions[0].config, basis: 'EXCESS_OVER_THRESHOLD' }, note: 'E2E future version' },
   });
 });
 
