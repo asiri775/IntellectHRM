@@ -31,6 +31,31 @@ async function apiLogin(email, password) {
   console.log(`  logo upload: ${up.status}`);
   await fetch(`${API}/company`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ primaryColor: '#1F4FD8', accentColor: '#0EA5A4', legalName: 'Intellect Choice', address: 'Colombo, Sri Lanka' }) });
 }
+// Save the real generated documents (PDF when CHROMIUM_PATH is set on the API).
+{
+  const { writeFileSync } = await import('node:fs');
+  const token = await apiLogin(ADMIN.email, ADMIN.password);
+  const H = { Authorization: `Bearer ${token}` };
+  const save = async (path, name) => {
+    const r = await fetch(`${API}${path}`, { headers: H });
+    const ext = (r.headers.get('content-type') ?? '').includes('pdf') ? 'pdf' : 'html';
+    writeFileSync(`${OUT}/${name}.${ext}`, Buffer.from(await r.arrayBuffer()));
+    console.log(`  📄 ${name}.${ext} (${r.status})`);
+  };
+  for (const t of await (await fetch(`${API}/templates/documents`, { headers: H })).json()) await save(`/templates/documents/${t.id}/sample`, `doc-${t.type.toLowerCase()}`);
+  const runs = await (await fetch(`${API}/payroll/runs`, { headers: H })).json();
+  const posted = runs.find((r) => r.status === 'POSTED');
+  if (posted) {
+    const run = await (await fetch(`${API}/payroll/runs/${posted.id}`, { headers: H })).json();
+    const line = run.lines.find((l) => l.employee.employeeNo === 'EMP0003') ?? run.lines[0];
+    await save(`/payroll/payslips/${line.id}/document?lang=si`, 'doc-payslip-kasun-sinhala');
+    await save(`/payroll/payslips/${line.id}/document?lang=en`, 'doc-payslip-kasun-english');
+  }
+  const opps = await (await fetch(`${API}/crm/opportunities`, { headers: H })).json();
+  const fleet = opps.find((o) => o.title === 'Fleet tracking mobile app');
+  if (fleet) await save(`/crm/opportunities/${fleet.id}/document?type=QUOTATION`, 'doc-quotation-fleet-tracking');
+}
+
 const hrToken = await apiLogin('nadeesha.perera@example.com', DEMO_PW);
 const kasunId = (await (await fetch(`${API}/employees?search=Kasun`, { headers: { Authorization: `Bearer ${hrToken}` } })).json()).items[0]?.id;
 
@@ -95,6 +120,11 @@ await safe('admin', async () => {
   await page.goto(`${WEB}/settings/document-templates`);
   await page.waitForFunction(() => (document.querySelector('iframe[title="Document preview"]')?.getAttribute('srcdoc')?.length ?? 0) > 500, null, { timeout: 15000 }).catch(() => console.error('  invoice preview did not render'));
   await shot(page, '12-settings-invoice-format', null, { wait: 800 });
+  const frame = page.locator('iframe[title="Document preview"]');
+  await frame.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(800);
+  await frame.screenshot({ path: `${OUT}/12b-invoice-preview.png` });
+  console.log('  📸 12b-invoice-preview');
   await shot(page, '13-settings-roles', '/settings/roles');
   await shot(page, '20-employees', '/employees');
   await shot(page, '32-payroll-runs', '/payroll');

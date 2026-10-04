@@ -159,7 +159,7 @@ export default function PayrollRunPage() {
                       <td className="num">{money(l.apit)}</td>
                       <td className={`num ${Number(l.contractTax) > 0 ? 'font-medium text-saffron' : ''}`}>{money(l.contractTax)}</td>
                       <td className="num">{money(l.otherDeductions)}</td>
-                      <td className="num font-semibold">{money(l.netPay)}</td>
+                      <td className="num font-semibold">{money(l.netPay, l.currency !== 'LKR' ? l.currency : undefined)}</td>
                       <td>
                         <Button
                           size="sm"
