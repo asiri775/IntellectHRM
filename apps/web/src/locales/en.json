@@ -86,7 +86,9 @@
     "status_APPROVED": "Approved",
     "status_REJECTED": "Not approved",
     "status_CANCELLED": "Cancelled",
-    "holidays": "Holidays"
+    "holidays": "Holidays",
+    "entitled": "Entitled",
+    "carried": "Carried forward"
   },
   "payslip": {
     "title": "My payslips",

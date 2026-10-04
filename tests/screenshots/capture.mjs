@@ -40,11 +40,23 @@ async function session(email, password, viewport = { width: 1440, height: 900 })
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: 1 });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.error(`[pageerror] ${e.message}`));
-  await page.goto(`${WEB}/login`);
-  await page.fill('input[type=email]', email);
-  await page.fill('input[type=password]', password);
-  await page.click('button[type=submit]');
-  await page.waitForURL((u) => !u.pathname.startsWith('/login'), { timeout: 15000 });
+  page.on('console', (m) => m.type() === 'error' && console.error(`[console] ${m.text()}`));
+  page.on('response', (r) => r.status() >= 400 && r.status() !== 401 && console.error(`[http ${r.status()}] ${r.request().method()} ${r.url()}`));
+  for (let attempt = 1; ; attempt++) {
+    await page.goto(`${WEB}/login`);
+    await page.fill('input[type=email]', email);
+    await page.fill('input[type=password]', password);
+    await page.click('button[type=submit]');
+    try {
+      await page.waitForURL((u) => !u.pathname.startsWith('/login'), { timeout: 15000 });
+      break;
+    } catch (e) {
+      // The API allows 10 sign-ins per minute per IP; wait for the window to reset.
+      if (attempt >= 3) throw e;
+      console.log(`  (sign-in throttled for ${email}, waiting 61s)`);
+      await page.waitForTimeout(61000);
+    }
+  }
   await page.waitForLoadState('networkidle');
   return { ctx, page };
 }
@@ -80,7 +92,9 @@ await safe('admin', async () => {
   const { ctx, page } = await session(ADMIN.email, ADMIN.password);
   await shot(page, '10-settings-branding', '/settings/branding');
   await shot(page, '11-settings-email-template', '/settings/email-templates', { wait: 1500 });
-  await shot(page, '12-settings-invoice-format', '/settings/document-templates', { wait: 2000 });
+  await page.goto(`${WEB}/settings/document-templates`);
+  await page.waitForFunction(() => (document.querySelector('iframe[title="Document preview"]')?.getAttribute('srcdoc')?.length ?? 0) > 500, null, { timeout: 15000 }).catch(() => console.error('  invoice preview did not render'));
+  await shot(page, '12-settings-invoice-format', null, { wait: 800 });
   await shot(page, '13-settings-roles', '/settings/roles');
   await shot(page, '20-employees', '/employees');
   await shot(page, '32-payroll-runs', '/payroll');
@@ -88,6 +102,7 @@ await safe('admin', async () => {
   await shot(page, '31-payroll-statutory-rules', null);
   await page.goto(`${WEB}/payroll`);
   const firstRun = page.locator('table tbody tr').first();
+  await firstRun.waitFor({ timeout: 10000 }).catch(() => undefined);
   if (await firstRun.count()) {
     await firstRun.click();
     await page.waitForURL(/payroll\/runs\//);

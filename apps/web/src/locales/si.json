@@ -86,7 +86,9 @@
     "status_APPROVED": "අනුමතයි",
     "status_REJECTED": "අනුමත නොවීය",
     "status_CANCELLED": "අවලංගුයි",
-    "holidays": "නිවාඩු දින"
+    "holidays": "නිවාඩු දින",
+    "entitled": "හිමි",
+    "carried": "ඉදිරියට ගෙන ආ"
   },
   "payslip": {
     "title": "මගේ වැටුප් පත්‍රිකා",

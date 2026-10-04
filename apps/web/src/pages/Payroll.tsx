@@ -271,7 +271,9 @@ function Rules() {
         Rates are never edited in place. A change is added as a new version with an effective date, and payroll runs keep the versions they were calculated with. Confirm every rate with your accountant before go-live.
       </p>
       {rules.map((r) => {
-        const v = r.versions[0];
+        const today = new Date().toISOString().slice(0, 10);
+        const v = r.versions.find((x: R) => x.effectiveFrom.slice(0, 10) <= today && (!x.effectiveTo || x.effectiveTo.slice(0, 10) >= today)) ?? r.versions[r.versions.length - 1];
+        const upcoming = r.versions.filter((x: R) => x.effectiveFrom.slice(0, 10) > today).sort((a: R, b: R) => a.effectiveFrom.localeCompare(b.effectiveFrom));
         return (
           <Panel
             key={r.id}
@@ -286,13 +288,20 @@ function Rules() {
           >
             <p className="mb-3 text-sm text-ink-500">{RULE_HELP[r.code]}</p>
             {v && <RuleSummary code={r.code} config={v.config} />}
+            {v && <p className="mt-1 text-xs text-ink-500">In force since {date(v.effectiveFrom)}.</p>}
+            {upcoming.map((u: R) => (
+              <div key={u.id} className="mt-3 rounded-ctl border border-saffron/40 bg-saffron/5 px-3 py-2">
+                <p className="mb-1 text-xs font-medium">Scheduled change from {date(u.effectiveFrom)}{u.note ? ` — ${u.note}` : ''}</p>
+                <RuleSummary code={r.code} config={u.config} />
+              </div>
+            ))}
             <details className="mt-3 text-sm">
               <summary className="cursor-pointer text-ink-500">Version history ({r.versions.length})</summary>
               <table className="table-base mt-2">
                 <thead>
                   <tr>
                     <th>Effective from</th>
-                    <th>To</th>
+                    <th>Until</th>
                     <th>Note</th>
                   </tr>
                 </thead>
@@ -350,7 +359,8 @@ function RuleSummary({ code, config: c }: { code: string; config: R }) {
 
 function VersionModal({ rule, onClose }: { rule: R; onClose: () => void }) {
   const qc = useQueryClient();
-  const current = rule.versions[0]?.config ?? {};
+  const today = new Date().toISOString().slice(0, 10);
+  const current = (rule.versions.find((x: R) => x.effectiveFrom.slice(0, 10) <= today && (!x.effectiveTo || x.effectiveTo.slice(0, 10) >= today)) ?? rule.versions[0])?.config ?? {};
   const [effectiveFrom, setFrom] = useState('');
   const [note, setNote] = useState('');
   const [cfg, setCfg] = useState<R>(current);

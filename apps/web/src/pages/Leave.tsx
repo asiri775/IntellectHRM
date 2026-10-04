@@ -60,8 +60,8 @@ function Mine() {
               <thead>
                 <tr>
                   <th>{t('leave.leaveType')}</th>
-                  <th className="num">Entitled</th>
-                  <th className="num">Carried</th>
+                  <th className="num">{t('leave.entitled')}</th>
+                  <th className="num">{t('leave.carried')}</th>
                   <th className="num">{t('leave.used')}</th>
                   <th className="num">{t('leave.pending')}</th>
                   <th className="num">{t('leave.available')}</th>
