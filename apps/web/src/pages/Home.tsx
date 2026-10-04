@@ -38,7 +38,9 @@ export function HomePage() {
 function MyLeave() {
   const { t } = useTranslation();
   const q = useQuery({ queryKey: ['leave', 'balances', 'me'], queryFn: () => get<R[]>('/leave/balances/me') });
-  const balances = (q.data ?? []).filter((b) => b.entitled + b.carriedForward + b.adjustment > 0);
+  // Special-purpose leave (maternity, paternity) is listed on the Leave page; here only once it's in use.
+  const special = ['MATERNITY', 'PATERNITY'];
+  const balances = (q.data ?? []).filter((b) => b.entitled + b.carriedForward + b.adjustment > 0 && (!special.includes(b.leaveType.code) || b.used + b.pending > 0));
   return (
     <Panel
       title={t('leave.balances')}

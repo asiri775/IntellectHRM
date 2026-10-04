@@ -109,7 +109,7 @@ export default function OpportunityPage() {
               <tbody>
                 {lines.map((l, i) => (
                   <tr key={i}>
-                    <td>{manage ? <Input value={l.description} onChange={(e) => update(i, { description: e.target.value })} aria-label="Description" /> : l.description}</td>
+                    <td>{manage ? <Input value={l.description} onChange={(e) => update(i, { description: e.target.value })} aria-label="Description" className="min-w-[16rem]" /> : l.description}</td>
                     <td className="num">{manage ? <Input type="number" min={0} value={l.quantity} onChange={(e) => update(i, { quantity: Number(e.target.value) })} className="text-right" aria-label="Quantity" /> : l.quantity}</td>
                     <td className="num">{manage ? <Input type="number" min={0} value={l.unitPrice} onChange={(e) => update(i, { unitPrice: Number(e.target.value) })} className="text-right" aria-label="Unit price" /> : money(l.unitPrice)}</td>
                     <td>{manage ? <Select value={l.taxCode ?? ''} onChange={(e) => update(i, { taxCode: e.target.value || null })} placeholder="None" options={codes.map((c) => ({ value: c, label: c }))} aria-label="Tax" /> : l.taxCode ?? '—'}</td>

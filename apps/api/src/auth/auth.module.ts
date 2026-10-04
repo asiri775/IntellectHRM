@@ -81,6 +81,13 @@ export class AuthService {
     const row = await this.prisma.refreshToken.findUnique({ where: { tokenHash: hash } });
     if (!row) throw new UnauthorizedException();
     if (row.revokedAt) {
+      const withinGrace = row.replacedBy && Date.now() - row.revokedAt.getTime() < config.REFRESH_REUSE_GRACE_SECONDS * 1000;
+      if (withinGrace) {
+        // Concurrent refresh from another tab: issue a sibling token in the same family.
+        const family = await this.prisma.refreshToken.count({ where: { familyId: row.familyId, revokedAt: null } });
+        if (family > 0 && row.expiresAt > new Date()) return this.issue(row.userId, row.familyId, meta);
+      }
+      // Re-use of an old token: assume it was stolen and end every session in the family.
       await this.prisma.refreshToken.updateMany({ where: { familyId: row.familyId, revokedAt: null }, data: { revokedAt: new Date() } });
       throw new UnauthorizedException('Refresh token reuse detected; please sign in again');
     }

@@ -376,8 +376,17 @@ await step('refresh token rotation and logout', async () => {
   const cookie = res.headers.get('set-cookie').split(';')[0];
   const r1 = await fetch(`${API}/auth/refresh`, { method: 'POST', headers: { cookie } });
   assert.equal(r1.status, 200);
-  const r2 = await fetch(`${API}/auth/refresh`, { method: 'POST', headers: { cookie } }); // reuse of rotated token
-  assert.equal(r2.status, 401);
+  // Immediate re-use (two tabs refreshing together) is tolerated within the grace window…
+  const r2 = await fetch(`${API}/auth/refresh`, { method: 'POST', headers: { cookie } });
+  assert.equal(r2.status, 200);
+  // …but re-use after the window is treated as theft and ends the whole session family.
+  const grace = Number(process.env.REFRESH_REUSE_GRACE_SECONDS ?? 20);
+  await new Promise((r) => setTimeout(r, (grace + 1) * 1000));
+  const r3 = await fetch(`${API}/auth/refresh`, { method: 'POST', headers: { cookie } });
+  assert.equal(r3.status, 401);
+  const sibling = r2.headers.get('set-cookie').split(';')[0];
+  const r4 = await fetch(`${API}/auth/refresh`, { method: 'POST', headers: { cookie: sibling } });
+  assert.equal(r4.status, 401, 'family revoked after theft detection');
 });
 
 console.log(`\nAll ${passed} E2E steps passed.`);

@@ -7,6 +7,7 @@ const require = createRequire(new URL('../../apps/api/package.json', import.meta
 const { chromium } = require('playwright-core');
 
 const WEB = process.env.WEB_URL ?? 'http://localhost:4173';
+const API = (process.env.API_URL ?? 'http://localhost:3000') + '/api';
 const OUT = process.env.OUT ?? '/tmp/shots';
 const ADMIN = { email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD };
 const DEMO_PW = process.env.SEED_DEMO_PASSWORD;
@@ -14,6 +15,24 @@ mkdirSync(OUT, { recursive: true });
 
 // Placeholder wordmark (company name only) so screenshots show where the real logo goes.
 const LOGO = `<svg xmlns="http://www.w3.org/2000/svg" width="360" height="80" viewBox="0 0 360 80"><rect width="360" height="80" fill="none"/><text x="0" y="52" font-family="Arial, sans-serif" font-size="40" font-weight="700" fill="#14213D">Intellect</text><text x="178" y="52" font-family="Arial, sans-serif" font-size="40" font-weight="400" fill="#0EA5A4">Choice</text></svg>`;
+
+async function apiLogin(email, password) {
+  const r = await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+  if (!r.ok) throw new Error(`API login failed for ${email}: ${r.status}`);
+  return (await r.json()).accessToken;
+}
+
+// Setup through the API (not the browser) so browser sessions are left untouched.
+{
+  const token = await apiLogin(ADMIN.email, ADMIN.password);
+  const fd = new FormData();
+  fd.append('file', new Blob([LOGO], { type: 'image/svg+xml' }), 'logo.svg');
+  const up = await fetch(`${API}/company/logo`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd });
+  console.log(`  logo upload: ${up.status}`);
+  await fetch(`${API}/company`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ primaryColor: '#1F4FD8', accentColor: '#0EA5A4', legalName: 'Intellect Choice', address: 'Colombo, Sri Lanka' }) });
+}
+const hrToken = await apiLogin('nadeesha.perera@example.com', DEMO_PW);
+const kasunId = (await (await fetch(`${API}/employees?search=Kasun`, { headers: { Authorization: `Bearer ${hrToken}` } })).json()).items[0]?.id;
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH, args: ['--no-sandbox'] });
 
@@ -59,29 +78,15 @@ await safe('login', async () => {
 // Admin: upload placeholder logo, then settings + payroll screens
 await safe('admin', async () => {
   const { ctx, page } = await session(ADMIN.email, ADMIN.password);
-  const token = await page.evaluate(async () => {
-    const r = await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' });
-    return (await r.json()).accessToken;
-  });
-  await page.evaluate(
-    async ({ token, svg }) => {
-      const fd = new FormData();
-      fd.append('file', new Blob([svg], { type: 'image/svg+xml' }), 'logo.svg');
-      await fetch('/api/company/logo', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd });
-      await fetch('/api/company', { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ primaryColor: '#1F4FD8', accentColor: '#0EA5A4' }) });
-    },
-    { token, svg: LOGO },
-  );
-  await page.reload();
   await shot(page, '10-settings-branding', '/settings/branding');
   await shot(page, '11-settings-email-template', '/settings/email-templates', { wait: 1500 });
   await shot(page, '12-settings-invoice-format', '/settings/document-templates', { wait: 2000 });
   await shot(page, '13-settings-roles', '/settings/roles');
   await shot(page, '20-employees', '/employees');
-  await shot(page, '30-payroll-rules', '/payroll');
-  await page.click('text=Statutory rules');
-  await shot(page, '31-payroll-statutory-rules', null);
   await shot(page, '32-payroll-runs', '/payroll');
+  await page.getByRole('tab', { name: 'Statutory rules' }).click();
+  await shot(page, '31-payroll-statutory-rules', null);
+  await page.goto(`${WEB}/payroll`);
   const firstRun = page.locator('table tbody tr').first();
   if (await firstRun.count()) {
     await firstRun.click();
@@ -98,12 +103,7 @@ await safe('hr', async () => {
   await shot(page, '22-attendance-board', '/attendance');
   await page.click('text=Daily board').catch(() => undefined);
   await shot(page, '23-attendance-daily', null);
-  const kasun = await page.evaluate(async () => {
-    const t = (await (await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' })).json()).accessToken;
-    const r = await fetch('/api/employees?search=Kasun', { headers: { Authorization: `Bearer ${t}` } });
-    return (await r.json()).items[0]?.id;
-  });
-  if (kasun) await shot(page, '24-employee-detail', `/employees/${kasun}`);
+  if (kasunId) await shot(page, '24-employee-detail', `/employees/${kasunId}`);
   await shot(page, '25-employee-form', '/employees/new');
   await ctx.close();
 });
@@ -116,6 +116,8 @@ await safe('employee', async () => {
   await shot(page, '42-my-payslips', '/payroll/my-payslips');
   await page.selectOption('header select', 'si');
   await shot(page, '43-home-sinhala', '/');
+  await page.selectOption('header select', 'ta');
+  await shot(page, '45-leave-tamil', '/leave');
   await page.selectOption('header select', 'en');
   await ctx.close();
   const m = await session('kasun.silva@example.com', DEMO_PW, { width: 390, height: 844 });

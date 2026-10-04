@@ -11,6 +11,8 @@ const schema = z.object({
   JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET must be at least 32 characters'),
   JWT_ACCESS_TTL: z.string().default('15m'),
   REFRESH_TTL_DAYS: z.coerce.number().default(14),
+  /** A rotated refresh token re-presented within this window (e.g. two tabs refreshing at once) is accepted instead of treated as theft. */
+  REFRESH_REUSE_GRACE_SECONDS: z.coerce.number().min(0).max(120).default(20),
   /** base64-encoded 32-byte key for AES-256-GCM field encryption. */
   DATA_ENCRYPTION_KEY: z.string().min(40),
   /** Secret for HMAC blind indexes (e.g. NIC uniqueness). */

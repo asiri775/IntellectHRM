@@ -39,6 +39,7 @@ jobs:
       BLIND_INDEX_KEY: ci-only-blind-index-key-0123456789abcdef
       STORAGE_DIR: /tmp/ihrm-storage
       MAIL_PROVIDER: log
+      REFRESH_REUSE_GRACE_SECONDS: '2'
       API_PUBLIC_URL: http://localhost:3000
       SEED_ADMIN_EMAIL: admin@example.com
       SEED_ADMIN_PASSWORD: CiAdminPassword123
@@ -107,7 +108,7 @@ jobs:
         run: |
           (pnpm --filter @ihrm/web exec vite preview --port 4173 --strictPort > /tmp/web.log 2>&1 &)
           for i in $(seq 1 30); do curl -sf http://localhost:4173 > /dev/null && break; sleep 1; done
-          WEB_URL=http://localhost:4173 OUT=/tmp/shots ADMIN_EMAIL=$SEED_ADMIN_EMAIL ADMIN_PASSWORD=$SEED_ADMIN_PASSWORD .github/scripts/run.sh screenshots node tests/screenshots/capture.mjs
+          WEB_URL=http://localhost:4173 API_URL=http://localhost:3000 OUT=/tmp/shots ADMIN_EMAIL=$SEED_ADMIN_EMAIL ADMIN_PASSWORD=$SEED_ADMIN_PASSWORD .github/scripts/run.sh screenshots node tests/screenshots/capture.mjs
       - name: Publish review artifacts to the ci-artifacts branch
         if: always() && github.event_name == 'push'
         run: |
