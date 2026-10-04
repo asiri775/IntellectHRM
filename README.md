@@ -31,7 +31,7 @@ cp apps/api/.env.example apps/api/.env
 
 # 4. Create the schema, build and seed
 cd apps/api
-pnpm exec prisma migrate deploy        # or: pnpm exec prisma db push   (see docs/DATABASE.md)
+pnpm exec prisma migrate deploy
 pnpm build
 node --env-file=.env dist/prisma/seed.js
 SEED_DEMO=true SEED_DEMO_PASSWORD='Demo-pass-123' node --env-file=.env dist/prisma/seed.js   # optional demo data

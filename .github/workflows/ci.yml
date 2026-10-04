@@ -65,6 +65,11 @@ jobs:
       - name: API — migration SQL from schema (printed for review)
         working-directory: apps/api
         run: pnpm exec prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > /tmp/schema.sql && wc -l /tmp/schema.sql
+      - name: API — committed migrations match schema.prisma (drift check)
+        working-directory: apps/api
+        run: |
+          PGPASSWORD=ihrm psql -h localhost -U ihrm -d ihrm -qc "CREATE DATABASE ihrm_shadow"
+          ../../.github/scripts/run.sh migration-drift pnpm exec prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url postgresql://ihrm:ihrm@localhost:5432/ihrm_shadow --exit-code
       - name: API — migrate (committed migrations if present, otherwise schema push)
         working-directory: apps/api
         run: |

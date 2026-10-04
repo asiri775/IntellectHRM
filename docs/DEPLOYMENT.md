@@ -33,4 +33,4 @@ Run exactly one instance with `ENABLE_SCHEDULER=true` (a Redis lock also prevent
 
 ## Database migrations
 
-The CI pipeline generates the full schema SQL from `prisma/schema.prisma`. For the first production deployment run `pnpm exec prisma migrate dev --name init` once on a development machine to create `prisma/migrations/`, commit it, and use `prisma migrate deploy` from then on. The seed installs the trigger that makes `audit_logs` append-only.
+Migrations live in `apps/api/prisma/migrations` and are applied with `pnpm exec prisma migrate deploy`. The initial migration also installs the trigger that makes `audit_logs` append-only. CI fails if `schema.prisma` and the committed migrations drift apart; after changing the schema, run `pnpm exec prisma migrate dev --name <change>` and commit the new folder.
