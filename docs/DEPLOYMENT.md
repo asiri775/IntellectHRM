@@ -9,7 +9,7 @@
 | PostgreSQL | 14+. Daily backups with point-in-time recovery. |
 | Redis | 6+. Email queue and scheduler lock. |
 | File storage | `STORAGE_DIR` on a persistent volume (logo, employee documents, email attachments). Back it up with the database. |
-| Chromium | Optional, for PDFs: install `chromium` and set `CHROMIUM_PATH`. |
+| Chromium | Optional, for PDFs: install `chromium` and set `CHROMIUM_PATH`. **Also install Sinhala and Tamil fonts** (`apt-get install fonts-noto-core` on Debian/Ubuntu), otherwise those payslips render as empty boxes. |
 
 ## Steps
 

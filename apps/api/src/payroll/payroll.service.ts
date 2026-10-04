@@ -17,7 +17,7 @@ import { employeeScope, hasPermission } from '../common/scope';
 import { SequenceService } from '../settings/sequence.service';
 import { ExchangeRateService, NotificationService } from '../settings/settings.module';
 import { DocumentService } from '../templates/templates.module';
-import { PAYSLIP_LABELS } from '../templates/defaults';
+import { localiseLine, PAYSLIP_LABELS, PAYSLIP_LINE_NAMES, periodName } from '../templates/defaults';
 import { MailService } from '../mail/mail.module';
 import { StatutoryService } from './statutory.service';
 
@@ -401,11 +401,11 @@ export class PayrollService {
     const bank = this.crypto.decrypt(line.employee.bankAccountEncrypted);
     return {
       t: PAYSLIP_LABELS[lang] ?? PAYSLIP_LABELS.en,
-      period: periodLabel(line.run.year, line.run.month),
+      period: periodName(line.run.year, line.run.month, lang),
       currency: line.currency,
-      earnings: d.earnings,
-      deductions: d.deductions,
-      employerContributions: d.employerContributions,
+      earnings: d.earnings.map((x) => localiseLine(x, lang)),
+      deductions: d.deductions.map((x) => localiseLine(x, lang)),
+      employerContributions: d.employerContributions.map((x) => localiseLine(x, lang)),
       totalEarnings: n(line.totalEarnings),
       totalDeductions: n(line.totalDeductions),
       netPay: n(line.netPay),
@@ -414,7 +414,7 @@ export class PayrollService {
         employeeNo: line.employee.employeeNo,
         designation: line.employee.designation?.name ?? '',
         department: line.employee.department?.name ?? '',
-        employmentType: line.employmentType,
+        employmentType: PAYSLIP_LINE_NAMES[lang]?.[line.employmentType] ?? PAYSLIP_LINE_NAMES.en[line.employmentType] ?? line.employmentType,
         epfNumber: line.employee.epfNumber ?? '',
         bank: [line.employee.bankName, this.crypto.mask(bank)].filter(Boolean).join(' '),
       },

@@ -39,7 +39,7 @@ Helpers: `money`, `date` (company date format), `percent`, `eq`, `and`, `or`, `i
 
 ## PDF engine
 
-Set `CHROMIUM_PATH` to a Chrome/Chromium binary. Rendering runs with JavaScript disabled. Without it, documents are delivered as print-ready HTML (attachments too), which any browser can save as PDF.
+Set `CHROMIUM_PATH` to a Chrome/Chromium binary and install the Noto fonts for Sinhala and Tamil (`fonts-noto-core`). Rendering runs with JavaScript disabled. Payslip month names, employment types and standard earning/deduction names are printed in the employee's language. Without it, documents are delivered as print-ready HTML (attachments too), which any browser can save as PDF.
 
 ## Numbering (Settings → Document numbering)
 

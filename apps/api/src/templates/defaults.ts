@@ -242,7 +242,7 @@ export const PAYSLIP_TEMPLATE_HTML = `<div class="doc">
     <div class="logo">{{#if (and options.showLogo company.logo)}}<img src="{{company.logo}}" alt="{{company.name}}">{{else}}<div class="name">{{company.name}}</div>{{/if}}</div>
     <div class="company"><strong>{{company.name}}</strong><br>{{#if company.address}}{{company.address}}<br>{{/if}}{{company.email}}</div>
   </div>
-  <h1>{{t.title}} – {{period}}</h1>
+  <h1 style="text-transform:none">{{t.title}} – {{period}}</h1>
   <div class="meta">
     <div class="box">
       <div><strong>{{t.employee}}:</strong> {{employee.name}} ({{employee.employeeNo}})</div>
@@ -332,6 +332,64 @@ export const DEFAULT_DOCUMENT_TEMPLATES = [
     options: { paperSize: 'A4', showLogo: true, showEmployerContributions: true, footerText: '' },
   },
 ];
+
+/** Localised names for payslip lines (by component/deduction code) and employment types. */
+export const PAYSLIP_LINE_NAMES: Record<string, Record<string, string>> = {
+  si: {
+    BASIC: 'මූලික වැටුප',
+    FIXED_ALLOWANCE: 'ස්ථාවර දීමනාව',
+    TRAVEL: 'ගමන් දීමනාව',
+    COMMUNICATION: 'සන්නිවේදන දීමනාව',
+    OVERTIME: 'අතිකාල',
+    BONUS: 'ප්‍රසාද දීමනාව',
+    NO_PAY: 'වැටුප් රහිත නිවාඩු',
+    EPF_EMPLOYEE: 'EPF සේවක දායකත්වය',
+    EPF_EMPLOYER: 'EPF සේවා යෝජක දායකත්වය',
+    ETF: 'ETF දායකත්වය',
+    APIT: 'APIT / PAYE බද්ද',
+    CONTRACT_EMPLOYEE_TAX: 'කොන්ත්‍රාත් සේවක බද්ද',
+    GRATUITY_ACCRUAL: 'පාරිතෝෂික ප්‍රතිපාදනය',
+    PERMANENT: 'ස්ථිර',
+    PROBATION: 'පරිවාස',
+    CONTRACT: 'කොන්ත්‍රාත්',
+    INTERN: 'පුහුණු',
+    CONSULTANT: 'උපදේශක',
+  },
+  ta: {
+    BASIC: 'அடிப்படைச் சம்பளம்',
+    FIXED_ALLOWANCE: 'நிலையான படி',
+    TRAVEL: 'பயணப்படி',
+    COMMUNICATION: 'தொடர்பாடல் படி',
+    OVERTIME: 'மேலதிக நேரம்',
+    BONUS: 'போனஸ்',
+    NO_PAY: 'சம்பளமற்ற விடுப்பு',
+    EPF_EMPLOYEE: 'EPF ஊழியர் பங்களிப்பு',
+    EPF_EMPLOYER: 'EPF முதலாளி பங்களிப்பு',
+    ETF: 'ETF பங்களிப்பு',
+    APIT: 'APIT / PAYE வரி',
+    CONTRACT_EMPLOYEE_TAX: 'ஒப்பந்த ஊழியர் வரி',
+    GRATUITY_ACCRUAL: 'பணிக்கொடை ஒதுக்கம்',
+    PERMANENT: 'நிரந்தர',
+    PROBATION: 'தகுதிகாண்',
+    CONTRACT: 'ஒப்பந்த',
+    INTERN: 'பயிற்சி',
+    CONSULTANT: 'ஆலோசகர்',
+  },
+  en: { PERMANENT: 'Permanent', PROBATION: 'Probation', CONTRACT: 'Contract', INTERN: 'Intern', CONSULTANT: 'Consultant' },
+};
+
+/** Translate a payslip line, keeping any rate suffix such as "(8%)". */
+export function localiseLine(line: { code: string; name: string }, lang: string) {
+  const name = PAYSLIP_LINE_NAMES[lang]?.[line.code];
+  if (!name) return line;
+  const rate = /\(([\d.]+%)\)$/.exec(line.name)?.[1];
+  return { ...line, name: rate ? `${name} (${rate})` : name };
+}
+
+export function periodName(year: number, month: number, lang: string) {
+  const locale = lang === 'si' ? 'si-LK' : lang === 'ta' ? 'ta-LK' : 'en-GB';
+  return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, 1)));
+}
 
 /** Payslip labels per language (used as {{t.*}} in the payslip template). */
 export const PAYSLIP_LABELS: Record<string, Record<string, string>> = {
