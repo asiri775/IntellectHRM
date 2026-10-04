@@ -59,7 +59,7 @@ export default function PipelinePage() {
           <Stat label="Average won deal" value={compactMoney(s.averageDealSize)} />
         </StatStrip>
       )}
-      {s?.missingExchangeRates?.length > 0 && <p className="text-xs text-saffron">Add exchange rates for {s.missingExchangeRates.join(', ')} in Settings to include those deals in the totals.</p>}
+      {s && (s.missingExchangeRates?.length ?? 0) > 0 && <p className="text-xs text-saffron">Add exchange rates for {s.missingExchangeRates.join(', ')} in Settings to include those deals in the totals.</p>}
       <ErrorNote error={move.error} />
       <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-4 sm:mx-0 sm:px-0">
         {(stages.data ?? [])

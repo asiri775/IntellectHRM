@@ -84,7 +84,7 @@ export function PunchCard() {
           {(state === 'SIGNED_IN' || state === 'ON_BREAK') && rec && t('attendance.signedInAt', { time: time(rec.signInAt, tz) })}
           {state === 'ON_BREAK' && ` · ${t('attendance.onBreak')}`}
           {state === 'SIGNED_OUT' && rec && t('attendance.signedOutAt', { time: time(rec.signOutAt, tz) })}
-          {rec?.lateMinutes > 0 && <span className="ml-2 text-saffron">{t('attendance.late', { minutes: rec.lateMinutes })}</span>}
+          {(rec?.lateMinutes ?? 0) > 0 && rec && <span className="ml-2 text-saffron">{t('attendance.late', { minutes: rec.lateMinutes })}</span>}
         </p>
         {d?.schedule && (
           <p className="text-xs text-ink-300">
