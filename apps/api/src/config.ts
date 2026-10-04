@@ -18,6 +18,8 @@ const schema = z.object({
   /** Secret for HMAC blind indexes (e.g. NIC uniqueness). */
   BLIND_INDEX_KEY: z.string().min(32),
   STORAGE_DIR: z.string().default('./storage'),
+  /** Optional: path to the built web app (apps/web/dist). When set, the API also serves the web app (single-process hosting such as cPanel). */
+  WEB_DIST_DIR: z.string().optional(),
   MAX_UPLOAD_MB: z.coerce.number().default(10),
   MAIL_PROVIDER: z.enum(['log', 'smtp']).default('log'),
   MAIL_FROM: z.string().default('Intellect Choice HR <no-reply@intellectchoice.co.nz>'),

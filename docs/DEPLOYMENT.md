@@ -25,6 +25,10 @@ Required production settings: `NODE_ENV=production`, strong `JWT_ACCESS_SECRET`,
 
 Run exactly one instance with `ENABLE_SCHEDULER=true` (a Redis lock also prevents duplicate runs).
 
+## Single-process / cPanel hosting
+
+Set `WEB_DIST_DIR=../web/dist` and the API also serves the web app, so no separate web server is needed. Start it with `node apps/api/server.js`, which loads `apps/api/.env`. See [DEPLOY_FASTCOMET.md](DEPLOY_FASTCOMET.md) for a step-by-step cPanel guide.
+
 ## Backups and recovery
 
 * Database: nightly full backup + WAL archiving (PITR), 35-day retention, encrypted, copied off-site. Test a restore monthly.
